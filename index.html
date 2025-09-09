@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>Spy Soft</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/x-icon" href="spy.webp">
+  <!-- <link rel="stylesheet" href="bootstrap/bootstrap.min.css"> -->
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Tajawal', sans-serif;
+      background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      direction: rtl;
+    }
+    .card {
+      background: rgba(255,255,255,0.08);
+      padding: 25px;
+      border-radius: 20px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+      text-align: center;
+      width: 90%;
+      max-width: 500px;
+      animation: fadeIn 0.6s ease;
+      backdrop-filter: blur(10px);
+    }
+    input, button, select {
+      padding: 10px;
+      margin: 8px;
+      border-radius: 12px;
+      border: none;
+      font-size: 16px;
+    }
+    button {
+      background: #e94560;
+      color: white;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover { background: #dd1a3a; }
+    .addButton { background: #4caf50; }
+    .addButton:hover { background: #168f1c; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .playerInput{
+        background-color: transparent;
+        border: 1px solid white;
+        color: white;
+        outline: none;
+        transition: 0.3s;
+    }
+    .playerInput:focus { border-color: #e94560; }
+    .playerInput::placeholder { color: white; }
+    #startBtn, #nextBtn , #revealBtn, #resetBtn, #nextVoteBtn { width: 40%; }
+    .customSelect {
+        background-color: transparent;
+        border: 1px solid white;
+        color: white;
+        outline: none;
+        transition: 0.3s;
+        border-radius: 12px;
+        padding: 10px;
+        font-size: 16px;
+        width: 100%;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        cursor: pointer;
+    }
+    .customSelect:focus {
+        border-color: #e94560;
+    }
+    .customSelect option {
+        background: #16213e;
+        color: white;
+    }
+
+    ul { list-style: none; padding: 0; }
+    li { margin: 5px 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.2); }
+    .fade {
+      animation: fadeIn 0.6s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="card" id="game"></div>
+  <script src="bootstrap/bootstrap.bundle.min.js"></script>
+  <script>
+    const gameEl = document.getElementById('game');
+    let players = [];
+    let scores = {};
+    let spyIndex = null;
+    let secretWord = '';
+    let shuffledPlayers = [];
+    let words = [
+        // 🏙️ أماكن
+        "مطار","مدرسة","مستشفى","مكتبة","مطعم","ملعب","سوبرماركت","مسجد","كنيسة","جامعة",
+        "حديقة","مول","سوق","محطة بنزين","مسرح","سينما","متحف","شاطئ","مخبز","مقهى",
+        "فندق","برج","قصر","قرية","مدينة ملاهي","كوبري","نفق","موقف باص","مطار عسكري","حظيرة",
+        "سجن","مكتب بريد","مغسلة","كراج","محطة قطار","مستودع","مزرعة","مطار خاص","ميناء","مصنع",
+        "مستشفى أسنان","صيدلية","قاعة أفراح","قاعة مؤتمرات","ملعب كرة","مسبح","سوبر ماركت","مكتبة عامة","غابة","صحراء",
+
+        // 🥘 أكل وشرب
+        "تفاح","موز","برتقال","عنب","بطيخ","فراولة","كيوي","كمثرى","رمان","مانجا",
+        "أرز","مكرونة","فول","عدس","حمص","لحم","فراخ","سمك","جمبري","كبدة",
+        "بيتزا","برجر","شاورما","كشري","طعمية","ساندويتش","بيض","جبنة","لبن","زيتون",
+        "عصير برتقال","شاي","قهوة","نسكافيه","بيبسي","مياه غازية","حليب","زبادي","كاكاو","شوكولاتة",
+
+        // 🎮 ألعاب وأنشطة
+        "شطرنج","دومينو","طاولة","كوتشينة","بلياردو","كرة سلة","كرة يد","كرة قدم","تنس","اسكواش",
+        "سباحة","جري","قفز","تسلق","رماية","بولينج","بليستيشن","نينتندو","ألعاب ورق","بازل",
+        "ليجو","غميضة","استغماية","كراسي موسيقية","مسابقة","رسم","غناء","رقص","تمثيل","عزف",
+
+        // 🏀 رياضات
+        "كاراتيه","جودو","كونغ فو","ملاكمة","مصارعة","تايكوندو","فروسية","دراجات","ركوب خيل","رماية سهام",
+        "هوكي","كريكت","رجبي","بيسبول","جولف","سيرك","تسلق جبال","قفز مظلات","ركوب أمواج","زومبا",
+
+        // 🏢 أماكن عمل
+        "شركة","مكتب","بنك","مستشفى خاص","مدرسة دولية","جامعة خاصة","مصنع سيارات","ورشة نجارة","ورشة حدادة","مطبعة",
+        "محكمة","وزارة","سفارة","مركز شرطة","مطعم فاخر","كافيه","مخبز","سوبر ماركت كبير","مكتبة مدرسية","فصل دراسي",
+        "معمل تحاليل","معمل كيمياء","غرفة عمليات","حضانة أطفال","دار أيتام","مركز شباب","قاعة حفلات","شركة تكنولوجيا","مزرعة دواجن","معرض سيارات",
+
+        // 🎶 فن وموسيقى
+        "جيتار","بيانو","طبلة","عود","ناي","كمان","دف","مزمار","ساكسفون","ترومبيت",
+        "مايكروفون","أستوديو","أغنية","فرقة موسيقية","حفل","مهرجان","دي جي","رقصة","لوحة","تمثال",
+
+        // 🐾 طبيعة وحيوانات
+        "قطة","كلب","حصان","جمل","بقرة","جاموسة","غنم","ماعز","بطة","وزة",
+        "سمكة","イルكا","حوت","تمساح","ثعبان","عصفور","نسر","بومة","حمامة","غراب",
+        "شجرة","نخلة","زهرة","وردة","صبار","غابة","صحراء","نهر","بحيرة","جبل",
+
+        // إضافات عامة
+        "كمبيوتر","موبايل","تلفزيون","راديو","كاميرا","كتاب","دفتر","قلم","كرسي","طاولة",
+        "باب","شباك","سقف","حائط","سجادة","مروحة","تكييف","ثلاجة","غسالة","بوتجاز"
+        ];
+    let votes = {};
+
+    if (sessionStorage.getItem('players')) {
+      players = JSON.parse(sessionStorage.getItem('players'));
+      scores = JSON.parse(sessionStorage.getItem('scores'));
+    }
+    function applyAnimation() {
+      gameEl.classList.remove('fade');
+      void gameEl.offsetWidth;
+      gameEl.classList.add('fade');
+    }
+
+    function shuffleArray(arr) {
+      let a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function startScreen() {
+      gameEl.innerHTML = `
+        <h2>أدخل أسماء اللاعبين</h2>
+        <input type="text" class="playerInput" id="playerName" placeholder="اسم اللاعب" />
+        <button class="addButton" onclick="addPlayer()">إضافة اللاعب</button>
+        <ul id="playersList"></ul>
+        <button id="startBtn" onclick="startGame()" disabled>ابدأ اللعبة</button>
+        <button id="resetBtn" onclick="resetGame()">🔄 إعادة اللعبة</button>
+
+      `;
+      updatePlayersList();
+      toggleStartButton();
+      applyAnimation();
+    }
+
+    function addPlayer() {
+      const name = document.getElementById('playerName').value.trim();
+      if (name) {
+        players.push(name);
+        scores[name] = scores[name] || 0;
+        document.getElementById('playerName').value = '';
+        saveSession();
+        updatePlayersList();
+        toggleStartButton();
+        applyAnimation();
+      }
+    }
+
+    function updatePlayersList() {
+      const list = document.getElementById('playersList');
+      if (list) list.innerHTML = players.map(p => `<li>${p}</li>`).join('');
+    }
+
+    function toggleStartButton() {
+      const btn = document.getElementById('startBtn');
+      if (btn) btn.disabled = players.length < 3;
+    }
+
+    function saveSession() {
+      sessionStorage.setItem('players', JSON.stringify(players));
+      sessionStorage.setItem('scores', JSON.stringify(scores));
+    }
+
+    function startGame() {
+      if (players.length < 3) {
+        alert("لازم على الأقل 3 لاعبين");
+        return;
+      }
+      secretWord = words[Math.floor(Math.random() * words.length)];
+      spyIndex = Math.floor(Math.random() * players.length);
+      shuffledPlayers = shuffleArray(players);
+      showPassScreen(0);
+    }
+
+    function showPassScreen(i) {
+      gameEl.innerHTML = `
+        <h2>الدور: ${shuffledPlayers[i]}</h2>
+        <p>أعطِ الهاتف للاعب</p>
+        <button id="nextBtn" onclick="showRole(${i})">جاهز</button>
+      `;
+      applyAnimation();
+    }
+
+    function showRole(i) {
+      const playerName = shuffledPlayers[i];
+      const isSpy = (players.indexOf(playerName) === spyIndex);
+      gameEl.innerHTML = `
+        <h2>الدور: ${playerName}</h2>
+        <p>${isSpy ? "أنت الجاسوس 🕵️" : "الكلمة: <b>" + secretWord + "</b>"}</p>
+        <button id="nextBtn" onclick="nextRole(${i})">تمام</button>
+      `;
+      applyAnimation();
+    }
+
+    function nextRole(i) {
+      if (i + 1 < shuffledPlayers.length) {
+        showPassScreen(i + 1);
+      } else {
+        startVotingIntro();
+      }
+      applyAnimation();
+    }
+
+    // function startVoting() {
+    //   votes = {};
+    //   gameEl.innerHTML = `<h2>التصويت: مين الجاسوس؟</h2>`;
+    //   players.forEach(p => {
+    //     gameEl.innerHTML += `
+    //       <p>${p} يختار:
+    //         <select id="vote_${p}" class="customSelect" onchange="checkVotes()">
+    //           <option value="">-- اختر --</option>
+    //           ${players.filter(op => op !== p).map(op => `<option>${op}</option>`).join('')}
+    //         </select>
+    //       </p>`;
+    //   });
+    //   gameEl.innerHTML += `<button id="revealBtn" onclick="showResult()" disabled>مين الجاسوس؟</button>`;
+    // }
+
+    function checkVotes() {
+      let allChosen = true;
+      players.forEach(p => {
+        const val = document.getElementById('vote_' + p).value;
+        if (!val) allChosen = false;
+      });
+      document.getElementById('revealBtn').disabled = !allChosen;
+    }
+
+
+    function startVotingIntro() {
+  gameEl.innerHTML = `
+    <h2>📢 وقت التصويت</h2>
+    <p>هيمسك كل لاعب الموبايل عشان يختار مين الجاسوس من غير ما حد يشوف</p>
+    <button onclick="showVoting(0)">ابدأ التصويت</button>
+  `;
+  applyAnimation();
+}
+
+function showVoting(i) {
+  const player = players[i];
+  gameEl.innerHTML = `
+    <h2>تصويت: ${player}</h2>
+    <p>اختر مين تظن انه الجاسوس 🕵️</p>
+    <select id="vote_${player}" class="customSelect">
+      <option value="">-- اختر --</option>
+      ${players.filter(op => op !== player).map(op => `<option>${op}</option>`).join('')}
+    </select>
+    <br>
+    <button id="nextVoteBtn" onclick="saveVote('${player}', ${i})">تمام</button>
+  `;
+  applyAnimation();
+}
+
+function saveVote(player, i) {
+  const val = document.getElementById('vote_' + player).value;
+  if (!val) {
+    alert("لازم تختار حد");
+    return;
+  }
+  votes[player] = val;
+
+  if (i + 1 < players.length) {
+    showVoting(i + 1);
+  } else {
+    gameEl.innerHTML = `
+      <h2>تم التصويت ✅</h2>
+      <p>اضغط لمعرفة مين الجاسوس</p>
+      <button id="revealBtn" onclick="showResult()">مين الجاسوس؟</button>
+    `;
+    applyAnimation();
+  }
+}
+
+
+function showResult() {
+  const spyName = players[spyIndex];
+  let resultHTML = `<h2>الجاسوس هو: ${spyName}</h2>`;
+
+  players.forEach(p => {
+    if (votes[p] === spyName) {
+      scores[p] += 100;
+    } else if (p === spyName && !Object.values(votes).includes(spyName)) {
+      scores[p] += 100;
+    }
+  });
+
+  saveSession();
+
+  let sorted = Object.entries(scores).sort((a,b) => b[1] - a[1]);
+  resultHTML += `<h3>النتائج:</h3><table>`;
+  sorted.forEach(([name, score], idx) => {
+    resultHTML += `<tr><td>${idx+1}</td><td>${name}</td><td>${score}</td></tr>`;
+  });
+  resultHTML += `</table>`;
+  resultHTML += `
+    <button onclick="startGame()">دور جديد</button>
+    <button onclick="resetGame()">🔄 إعادة اللعبة</button>
+  `;
+  gameEl.innerHTML = resultHTML;
+  applyAnimation();
+}
+
+
+    function resetGame() {
+      if (confirm("هل أنت متأكد أنك تريد إعادة اللعبة من البداية؟")) {
+        sessionStorage.clear();
+        players = [];
+        scores = {};
+        startScreen();
+        applyAnimation();
+      }
+    }
+
+    startScreen();
+  </script>
+</body>
+</html>
